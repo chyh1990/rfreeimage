@@ -3,7 +3,8 @@ $:.push File.expand_path("../lib", __FILE__)
 if ENV['DEVELOPMENT']
   VERSION = `git describe --tags`.strip.gsub('-', '.')[1..-1]
 else
-  VERSION = "0.1.0"
+  require 'rfreeimage/version'
+  VERSION = RFreeImage::VERSION
 end
 
 Gem::Specification.new do |s|
@@ -15,10 +16,13 @@ Gem::Specification.new do |s|
   s.email                 = "chyh1990@gmail.com"
   s.authors               = [ "Yuheng Chen" ]
   s.license               = "MIT"
-  s.files                 = %w( README.md )
+  s.files                 = %w( README.md LICENSE Rakefile rfreeimage.gemspec )
   s.files                 += Dir.glob("lib/**/*.rb")
   s.files                 += Dir.glob("ext/**/*.[ch]")
-  s.extensions            = ['ext/rfreeimage/extconf.rb']
+  s.files                 += Dir.glob("vendor/FreeImage/Makefile*")
+  s.files                 += Dir.glob("vendor/FreeImage/README.*")
+  s.files                 += Dir.glob("vendor/FreeImage/{Source, Wrapper}/**/*.{c,h,cpp}")
+  s.extensions            = Dir.glob('ext/**/extconf.rb')
   s.required_ruby_version = '>= 1.9.3'
   s.description           = <<desc
   RFreeImage is the ruby binding for FreeImage library.
