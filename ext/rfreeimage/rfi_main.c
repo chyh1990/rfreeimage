@@ -56,7 +56,7 @@ VALUE Image_alloc(VALUE self)
 }
 
 static void
-rd_image(VALUE clazz, VALUE file, struct native_image *img, int bpp)
+rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp)
 {
 	char *filename;
 	long f_len;
@@ -124,7 +124,6 @@ VALUE Image_save(VALUE self, VALUE file)
 {
 	char *filename;
 	long f_len;
-	FIBITMAP *h = NULL, *orig = NULL;
 	struct native_image* img;
 	BOOL result;
 
@@ -175,7 +174,38 @@ VALUE Image_bytes(VALUE self)
 {
 	struct native_image* img;
 	Data_Get_Struct(self, struct native_image, img);
-	return rb_str_new(FreeImage_GetBits(img->handle), img->stride * img->h);
+	return (VALUE)rb_str_new(FreeImage_GetBits(img->handle), img->stride * img->h);
+}
+
+VALUE Image_to_bpp(VALUE self, VALUE _bpp)
+{
+	struct native_image *img, *new_img;
+	FIBITMAP *nh;
+	int bpp = NUM2INT(_bpp);
+	Data_Get_Struct(self, struct native_image, img);
+
+	switch(bpp) {
+		case 8:
+			nh = FreeImage_ConvertTo8Bits(img->handle);
+			break;
+		case 24:
+			nh = FreeImage_ConvertTo24Bits(img->handle);
+			break;
+		case 32:
+			nh = FreeImage_ConvertTo32Bits(img->handle);
+			break;
+		default:
+			rb_raise(rb_eArgError, "Invalid bpp");
+	}
+
+	new_img = malloc(sizeof(struct native_image));
+	memcpy(new_img, img, sizeof(struct native_image));
+	new_img->handle = nh;
+	new_img->stride = FreeImage_GetLine(nh);
+	new_img->bpp = bpp;
+	new_img->filename = NULL;
+
+	return Data_Wrap_Struct(Class_Image, NULL, Image_free, new_img);
 }
 
 void Init_rfreeimage(void)
@@ -194,6 +224,8 @@ void Init_rfreeimage(void)
 	rb_define_method(Class_Image, "stride", Image_stride, 0);
 	rb_define_method(Class_Image, "bytes", Image_bytes, 0);
 	rb_define_method(Class_Image, "save", Image_save, 1);
+
+	rb_define_method(Class_Image, "to_bpp", Image_to_bpp, 1);
 }
 
 
