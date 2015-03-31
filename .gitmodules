@@ -1,0 +1,3 @@
+[submodule "vendor/FreeImage"]
+	path = vendor/FreeImage
+	url = https://github.com/chyh1990/FreeImage.git
