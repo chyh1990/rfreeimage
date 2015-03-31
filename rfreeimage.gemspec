@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.version               = VERSION
   s.date                  = Time.now.strftime('%Y-%m-%d')
   s.summary               = "Ruby extension for FreeImage library."
-  s.homepage              = "https://github.com/libgit2/rugged"
+  s.homepage              = "https://github.com/chyh1990/rfreeimage"
   s.email                 = "chyh1990@gmail.com"
   s.authors               = [ "Yuheng Chen" ]
   s.license               = "MIT"
