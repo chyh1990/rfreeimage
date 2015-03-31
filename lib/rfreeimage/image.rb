@@ -1,9 +1,26 @@
 module RFreeImage
 	module ImageBPP
-		BPP_GRAY = 8
-		BPP_BGR = 24
-		BPP_BGRA = 32
+		GRAY = 8
+		BGR = 24
+		BGRA = 32
 	end
 	class Image
+		def bytes
+			@bytes ||= read_bytes
+		end
+
+		def destroy!
+			release
+			@bytes = nil
+		end
+
+		def gray?
+			bpp == GRAY
+		end
+
+		def to_gray
+			return self if gray?
+			to_bpp 8
+		end
 	end
 end
