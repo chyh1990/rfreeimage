@@ -30,14 +30,6 @@ static VALUE rb_rfi_string_version(VALUE self)
 	return result;
 }
 
-static VALUE
-file_arg_rescue(VALUE arg)
-{
-	rb_raise(rb_eTypeError, "argument must be path name or open file (%s given)",
-			rb_class2name(CLASS_OF(arg)));
-	return(VALUE)0;
-}
-
 struct native_image {
 	int w;
 	int h;
@@ -96,6 +88,7 @@ static void
 rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BOOL ping)
 {
 	char *filename;
+	int flags = 0;
 	FIBITMAP *h = NULL, *orig = NULL;
 	FREE_IMAGE_FORMAT in_fif;
 
@@ -107,7 +100,6 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 		rb_raise(rb_eIOError, "Invalid image file");
 	}
 
-	int flags = 0;
 	if (ping) flags |= FIF_LOAD_NOPIXELS;
 	if (in_fif == FIF_JPEG) flags |= JPEG_EXIFROTATE;
 	orig = FreeImage_Load(in_fif, filename, flags);
@@ -202,7 +194,7 @@ VALUE Image_save(VALUE self, VALUE file)
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
 
-	file = rb_rescue(rb_String, file, file_arg_rescue, file);
+	Check_Type(file, T_STRING);
 	filename = rfi_value_to_str(file);
 
 	out_fif = FreeImage_GetFIFFromFilename(filename);
@@ -340,6 +332,8 @@ VALUE Image_to_bpp(VALUE self, VALUE _bpp)
 	int bpp = NUM2INT(_bpp);
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
+	if (bpp == img->bpp)
+		return self;
 
 	nh = convert_bpp(img->handle, bpp);
 	if (!nh) rb_raise(rb_eArgError, "Invalid bpp");
@@ -455,6 +449,66 @@ VALUE Image_ping_blob(VALUE self, VALUE blob)
 	return v;
 }
 
+/* draw */
+VALUE Image_draw_point(VALUE self, VALUE _x, VALUE _y, VALUE color, VALUE _size)
+{
+	struct native_image* img;
+	int x = NUM2INT(_x);
+	int y = NUM2INT(_y);
+	int size = NUM2INT(_size);
+	int hs = size / 2, i, j;
+	unsigned int bgra = NUM2UINT(color);
+	if (size < 0)
+		rb_raise(rb_eArgError, "Invalid point size: %d", size);
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	for(i = -hs; i <= hs; i++) {
+		for(j = -hs; j <= hs; j++) {
+			if (i*i + j*j <= hs*hs)
+				FreeImage_SetPixelColor(img->handle, x + i, img->h - (y + j) - 1, (RGBQUAD*)&bgra);
+		}
+	}
+
+	return self;
+}
+
+VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
+		VALUE _x2, VALUE _y2,
+		VALUE color, VALUE _width)
+{
+	struct native_image* img;
+	int x1 = NUM2INT(_x1);
+	int y1 = NUM2INT(_y1);
+	int x2 = NUM2INT(_x2);
+	int y2 = NUM2INT(_y2);
+	int size = NUM2INT(_width);
+	int hs = size / 2, i, j;
+	unsigned int bgra = NUM2UINT(color);
+	if (size < 0)
+		rb_raise(rb_eArgError, "Invalid line width: %d", size);
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	for(i = -hs; i <= hs; i++) {
+		for(j = x1; j <= x2; j++) {
+			FreeImage_SetPixelColor(img->handle, j, img->h - (y1 + i) - 1, (RGBQUAD*)&bgra);
+			FreeImage_SetPixelColor(img->handle, j, img->h - (y2 + i) - 1, (RGBQUAD*)&bgra);
+		}
+	}
+
+	for(i = -hs; i <= hs; i++) {
+		for(j = y1; j <= y2; j++) {
+			FreeImage_SetPixelColor(img->handle, x1 + i, img->h - j - 1, (RGBQUAD*)&bgra);
+			FreeImage_SetPixelColor(img->handle, x2 + i, img->h - j - 1, (RGBQUAD*)&bgra);
+		}
+	}
+
+	return self;
+}
+
+
+
 void Init_rfreeimage(void)
 {
 	rb_mFI = rb_define_module("RFreeImage");
@@ -482,6 +536,10 @@ void Init_rfreeimage(void)
 	rb_define_method(Class_Image, "rotate", Image_rotate, 1);
 	rb_define_method(Class_Image, "resize", Image_resize, 2);
 	rb_define_method(Class_Image, "crop", Image_crop, 4);
+
+	/* draw */
+	rb_define_method(Class_Image, "draw_point", Image_draw_point, 4);
+	rb_define_method(Class_Image, "draw_rectangle", Image_draw_rectangle, 4 + 2);
 
 	rb_define_singleton_method(Class_Image, "ping", Image_ping, 1);
 	rb_define_singleton_method(Class_Image, "from_blob", Image_from_blob, -1);

@@ -76,7 +76,7 @@ class TestMemoryImageLoader < Test::Unit::TestCase
 
 	def test_bad
 		assert_raise IOError do
-			img = Image.from_blob @bad
+			Image.from_blob @bad
 		end
 	end
 
