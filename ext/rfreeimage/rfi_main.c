@@ -109,7 +109,7 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 	img->w = FreeImage_GetWidth(h);
 	img->h = FreeImage_GetHeight(h);
 	img->bpp = FreeImage_GetBPP(h);
-	img->stride = FreeImage_GetLine(h);
+	img->stride = FreeImage_GetPitch(h);
 	img->fif = in_fif;
 }
 
@@ -219,11 +219,25 @@ VALUE Image_read_bytes(VALUE self)
 {
 	struct native_image* img;
 	const char *p;
+	char *ptr;
+	unsigned stride_dst;
+	int i;
+	VALUE v;
 
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
 	p = (const char*)FreeImage_GetBits(img->handle);
-	return rb_str_new(p, img->stride * img->h);
+	stride_dst = img->w * (img->bpp / 8);
+	v = rb_str_buf_new(stride_dst * img->h);
+
+	/* up-side-down */
+	ptr = RSTRING_PTR(v) + img->h * stride_dst;
+	for(i = 0; i < img->h; i++) {
+		ptr -= stride_dst;
+		memcpy(ptr, p, stride_dst);
+		p += img->stride;
+	}
+	return v;
 }
 
 VALUE Image_buffer_addr(VALUE self)
@@ -251,7 +265,7 @@ static inline VALUE rfi_get_image(FIBITMAP *nh)
 	new_img = malloc(sizeof(struct native_image));
 	memset(new_img, 0, sizeof(struct native_image));
 	new_img->handle = nh;
-	new_img->stride = FreeImage_GetLine(nh);
+	new_img->stride = FreeImage_GetPitch(nh);
 	new_img->bpp = FreeImage_GetBPP(nh);
 	new_img->w = FreeImage_GetWidth(nh);
 	new_img->h = FreeImage_GetHeight(nh);

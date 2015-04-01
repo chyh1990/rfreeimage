@@ -15,7 +15,7 @@ module RFreeImage
 		end
 
 		def gray?
-			bpp == GRAY
+			bpp == ImageBPP::GRAY
 		end
 
 		def to_gray
