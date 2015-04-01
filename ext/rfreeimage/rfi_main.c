@@ -228,7 +228,7 @@ VALUE Image_read_bytes(VALUE self)
 	RFI_CHECK_IMG(img);
 	p = (const char*)FreeImage_GetBits(img->handle);
 	stride_dst = img->w * (img->bpp / 8);
-	v = rb_str_buf_new(stride_dst * img->h);
+	v = rb_str_new(NULL, stride_dst * img->h);
 
 	/* up-side-down */
 	ptr = RSTRING_PTR(v) + img->h * stride_dst;
