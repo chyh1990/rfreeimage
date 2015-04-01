@@ -22,5 +22,7 @@ module RFreeImage
 			return self if gray?
 			to_bpp 8
 		end
+
+		alias_method :write, :save
 	end
 end

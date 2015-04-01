@@ -119,4 +119,8 @@ class TestImageSave < Test::Unit::TestCase
 			assert_equal bpp, info.bpp
 		}
 	end
+	def test_write
+		temp = Tempfile.new ['out', '.png']
+		@img.write temp.path
+	end
 end
