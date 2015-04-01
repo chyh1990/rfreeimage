@@ -107,7 +107,10 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 		rb_raise(rb_eIOError, "Invalid image file");
 	}
 
-	orig = FreeImage_Load(in_fif, filename, ping ? FIF_LOAD_NOPIXELS : 0 );
+	int flags = 0;
+	if (ping) flags |= FIF_LOAD_NOPIXELS;
+	if (in_fif == FIF_JPEG) flags |= JPEG_EXIFROTATE;
+	orig = FreeImage_Load(in_fif, filename, flags);
 	free(filename);
 	if (!orig)
 		rb_raise(rb_eIOError, "Fail to load image file");
@@ -210,7 +213,7 @@ VALUE Image_save(VALUE self, VALUE file)
 
 	if (out_fif == FIF_JPEG && img->bpp != 8 && img->bpp != 24) {
 		FIBITMAP *to_save = FreeImage_ConvertTo24Bits(img->handle);
-		result = FreeImage_Save(out_fif, to_save, filename, 0);
+		result = FreeImage_Save(out_fif, to_save, filename, JPEG_BASELINE);
 		FreeImage_Unload(to_save);
 	} else {
 		result = FreeImage_Save(out_fif, img->handle, filename, 0);
