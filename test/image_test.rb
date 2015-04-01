@@ -7,8 +7,10 @@ def get_image fn
 end
 
 def assert_dim img
-	assert_equal img.stride, img.cols * img.bpp / 8
-	assert_equal img.bytes.size, img.rows * img.stride
+	byte_per_pixel = img.bpp / 8
+	assert img.stride % 4 == 0
+	assert img.stride >= img.cols * byte_per_pixel
+	assert_equal img.bytes.size, img.rows * img.cols * byte_per_pixel
 end
 
 include RFreeImage
@@ -81,7 +83,6 @@ class TestImageBPP < Test::Unit::TestCase
 		[ImageBPP::GRAY, ImageBPP::BGR, ImageBPP::BGRA].each {|bpp|
 			img = @img.to_bpp bpp
 			assert_equal img.bpp, bpp
-			assert_equal img.bytes.size, img.rows * img.cols * img.bpp / 8
 			assert_dim img
 		}
 	end
