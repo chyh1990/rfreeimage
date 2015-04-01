@@ -45,6 +45,43 @@ class TestImageLoader < Test::Unit::TestCase
 	# TODO: find more malform image files
 end
 
+class TestMemoryImageLoader < Test::Unit::TestCase
+	def setup
+		@data = File.read get_image("test.jpg")
+		@bad = "XXFDSFDS"
+	end
+	def test_ping_jpeg
+		img = Image.ping_blob @data
+		assert_equal img.cols, 500
+		assert_equal img.rows, 588
+		assert_equal img.bpp, 24
+		assert_equal img.format, "JPEG"
+	end
+
+	def test_read_jpeg
+		img = Image.from_blob @data
+		assert_equal img.cols, 500
+		assert_equal img.rows, 588
+		assert_equal img.bpp, 32
+		assert_equal img.format, "JPEG"
+		assert_dim img
+	end
+
+	def test_read_jpeg_gray
+		img = Image.from_blob @data, ImageBPP::GRAY
+		assert_equal img.bpp, 8
+		assert_equal img.format, "JPEG"
+		assert_dim img
+	end
+
+	def test_bad
+		assert_raise IOError do
+			img = Image.from_blob @bad
+		end
+	end
+
+end
+
 class TestImageMemoryManage < Test::Unit::TestCase
 	def test_destroy
 		img = Image.new get_image("test.jpg")

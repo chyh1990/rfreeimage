@@ -6,6 +6,16 @@ static VALUE rb_mFI;
 static VALUE Class_Image;
 static VALUE Class_RFIError;
 
+__attribute__((constructor))
+static void __rfi_module_init() {
+	FreeImage_Initialise(FALSE);
+}
+
+__attribute__((destructor))
+static void __rfi_module_uninit() {
+	FreeImage_DeInitialise();
+}
+
 static VALUE rb_rfi_version(VALUE self)
 {
 	return rb_ary_new3(3, INT2NUM(FREEIMAGE_MAJOR_VERSION),
@@ -60,6 +70,7 @@ static inline char *rfi_value_to_str(VALUE v)
 {
 	char *filename;
 	long f_len;
+	Check_Type(v, T_STRING);
 	f_len = RSTRING_LEN(v);
 	filename = malloc(f_len + 1);
 	memcpy(filename, RSTRING_PTR(v), f_len);
@@ -88,7 +99,6 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 	FIBITMAP *h = NULL, *orig = NULL;
 	FREE_IMAGE_FORMAT in_fif;
 
-	file = rb_rescue(rb_String, file, file_arg_rescue, file);
 	filename = rfi_value_to_str(file);
 
 	in_fif = FreeImage_GetFileType(filename, 0);
@@ -101,6 +111,43 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 	free(filename);
 	if (!orig)
 		rb_raise(rb_eIOError, "Fail to load image file");
+	if (ping) {
+		h = orig;
+	} else {
+		if (bpp <= 0) bpp = 32;
+		h = convert_bpp(orig, bpp);
+		FreeImage_Unload(orig);
+		if (!h) rb_raise(rb_eArgError, "Invalid bpp");
+	}
+	img->handle = h;
+	img->w = FreeImage_GetWidth(h);
+	img->h = FreeImage_GetHeight(h);
+	img->bpp = FreeImage_GetBPP(h);
+	img->stride = FreeImage_GetPitch(h);
+	img->fif = in_fif;
+}
+
+static void
+rd_image_blob(VALUE clazz, VALUE blob, struct native_image *img, unsigned int bpp, BOOL ping)
+{
+	FIBITMAP *h = NULL, *orig = NULL;
+	FIMEMORY *fmh;
+	FREE_IMAGE_FORMAT in_fif;
+
+	Check_Type(blob, T_STRING);
+	fmh = FreeImage_OpenMemory((BYTE*)RSTRING_PTR(blob), RSTRING_LEN(blob));
+
+	in_fif = FreeImage_GetFileTypeFromMemory(fmh, 0);
+	if (in_fif == FIF_UNKNOWN) {
+		FreeImage_CloseMemory(fmh);
+		rb_raise(rb_eIOError, "Invalid image blob");
+	}
+
+	orig = FreeImage_LoadFromMemory(in_fif, fmh, ping ? FIF_LOAD_NOPIXELS : 0 );
+	FreeImage_CloseMemory(fmh);
+	if (!orig)
+		rb_raise(rb_eIOError, "Fail to load image from memory");
+
 	if (ping) {
 		h = orig;
 	} else {
@@ -356,18 +403,53 @@ VALUE Image_crop(VALUE self, VALUE _left, VALUE _top, VALUE _right, VALUE _botto
 	return rfi_get_image(nh);
 }
 
+#define ALLOC_NEW_IMAGE(__v, img) \
+	VALUE __v = Image_alloc(Class_Image);            \
+	struct native_image* img;                        \
+	Data_Get_Struct(__v, struct native_image, img)   \
+
 VALUE Image_ping(VALUE self, VALUE file)
 {
-	struct native_image* img = malloc(sizeof(struct native_image));
-	memset(img, 0, sizeof(struct native_image));
+	ALLOC_NEW_IMAGE(v, img);
 
 	rd_image(self, file, img, 0, 1);
-
 	if (img->handle)
 		FreeImage_Unload(img->handle);
 	img->handle = NULL;
 
-	return Data_Wrap_Struct(Class_Image, NULL, Image_free, img);
+	return v;
+}
+
+VALUE Image_from_blob(int argc, VALUE *argv, VALUE self)
+{
+	ALLOC_NEW_IMAGE(v, img);
+
+	switch (argc)
+	{
+		case 1:
+			rd_image_blob(self, argv[0], img, 0, 0);
+			break;
+		case 2:
+			rd_image_blob(self, argv[0], img, NUM2INT(argv[1]), 0);
+			break;
+		default:
+			rb_raise(rb_eArgError, "wrong number of arguments (%d for 1)", argc);
+			break;
+	}
+
+	return v;
+}
+
+VALUE Image_ping_blob(VALUE self, VALUE blob)
+{
+	ALLOC_NEW_IMAGE(v, img);
+
+	rd_image_blob(self, blob, img, 0, 1);
+	if (img->handle)
+		FreeImage_Unload(img->handle);
+	img->handle = NULL;
+
+	return v;
 }
 
 void Init_rfreeimage(void)
@@ -399,5 +481,6 @@ void Init_rfreeimage(void)
 	rb_define_method(Class_Image, "crop", Image_crop, 4);
 
 	rb_define_singleton_method(Class_Image, "ping", Image_ping, 1);
-
+	rb_define_singleton_method(Class_Image, "from_blob", Image_from_blob, -1);
+	rb_define_singleton_method(Class_Image, "ping_blob", Image_ping_blob, 1);
 }
