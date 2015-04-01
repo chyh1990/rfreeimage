@@ -67,6 +67,20 @@ static inline char *rfi_value_to_str(VALUE v)
 	return filename;
 }
 
+static FIBITMAP *
+convert_bpp(FIBITMAP *orig, unsigned int bpp) {
+	FIBITMAP *h = NULL;
+	switch(bpp) {
+		case 8:
+			h = FreeImage_ConvertToGreyscale(orig);
+			break;
+		case 32:
+			h = FreeImage_ConvertTo32Bits(orig);
+			break;
+	}
+	return h;
+}
+
 static void
 rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BOOL ping)
 {
@@ -87,23 +101,13 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 	free(filename);
 	if (!orig)
 		rb_raise(rb_eIOError, "Fail to load image file");
-	if (FreeImage_GetBPP(orig) == bpp || bpp <= 0 || ping) {
+	if (ping) {
 		h = orig;
 	} else {
-		switch(bpp) {
-			case 8:
-				h = FreeImage_ConvertTo8Bits(orig);
-				break;
-			case 24:
-				h = FreeImage_ConvertTo24Bits(orig);
-				break;
-			case 32:
-				h = FreeImage_ConvertTo32Bits(orig);
-				break;
-			default:
-				rb_raise(rb_eArgError, "Invalid bpp");
-		}
+		if (bpp <= 0) bpp = 32;
+		h = convert_bpp(orig, bpp);
 		FreeImage_Unload(orig);
+		if (!h) rb_raise(rb_eArgError, "Invalid bpp");
 	}
 	img->handle = h;
 	img->w = FreeImage_GetWidth(h);
@@ -119,7 +123,6 @@ VALUE Image_initialize(int argc, VALUE *argv, VALUE self)
 	/* unwrap */
 	Data_Get_Struct(self, struct native_image, img);
 
-	memset(img, 0, sizeof(struct native_image));
 	switch (argc)
 	{
 		case 1:
@@ -158,7 +161,14 @@ VALUE Image_save(VALUE self, VALUE file)
 		rb_raise(Class_RFIError, "Invalid format");
 	}
 
-	result = FreeImage_Save(out_fif, img->handle, filename, 0);
+	if (out_fif == FIF_JPEG && img->bpp != 8 && img->bpp != 24) {
+		FIBITMAP *to_save = FreeImage_ConvertTo24Bits(img->handle);
+		result = FreeImage_Save(out_fif, to_save, filename, 0);
+		FreeImage_Unload(to_save);
+	} else {
+		result = FreeImage_Save(out_fif, img->handle, filename, 0);
+	}
+
 	free(filename);
 
 	if(!result)
@@ -281,19 +291,9 @@ VALUE Image_to_bpp(VALUE self, VALUE _bpp)
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
 
-	switch(bpp) {
-		case 8:
-			nh = FreeImage_ConvertTo8Bits(img->handle);
-			break;
-		case 24:
-			nh = FreeImage_ConvertTo24Bits(img->handle);
-			break;
-		case 32:
-			nh = FreeImage_ConvertTo32Bits(img->handle);
-			break;
-		default:
-			rb_raise(rb_eArgError, "Invalid bpp");
-	}
+	nh = convert_bpp(img->handle, bpp);
+	if (!nh) rb_raise(rb_eArgError, "Invalid bpp");
+
 	return rfi_get_image(nh);
 }
 
@@ -359,6 +359,8 @@ VALUE Image_crop(VALUE self, VALUE _left, VALUE _top, VALUE _right, VALUE _botto
 VALUE Image_ping(VALUE self, VALUE file)
 {
 	struct native_image* img = malloc(sizeof(struct native_image));
+	memset(img, 0, sizeof(struct native_image));
+
 	rd_image(self, file, img, 0, 1);
 
 	if (img->handle)
@@ -399,5 +401,3 @@ void Init_rfreeimage(void)
 	rb_define_singleton_method(Class_Image, "ping", Image_ping, 1);
 
 }
-
-

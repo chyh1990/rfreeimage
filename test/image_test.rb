@@ -1,7 +1,7 @@
 require "test/unit"
 require 'tempfile'
 require 'rfreeimage'
- 
+
 def get_image fn
 	File.expand_path("../images/#{fn}", __FILE__)
 end
@@ -20,7 +20,7 @@ class TestImageLoader < Test::Unit::TestCase
 		img = Image.new get_image("test.jpg")
 		assert_equal img.cols, 500
 		assert_equal img.rows, 588
-		assert_equal img.bpp, 24
+		assert_equal img.bpp, 32
 		assert_equal img.format, "JPEG"
 		assert_dim img
 	end
@@ -73,14 +73,14 @@ class TestImageBPP < Test::Unit::TestCase
 	end
 
 	def test_load_bpp
-		[ImageBPP::GRAY, ImageBPP::BGR, ImageBPP::BGRA].each {|bpp|
+		[ImageBPP::GRAY, ImageBPP::BGRA].each {|bpp|
 			img = Image.new get_image("test.jpg"), bpp
 			assert_equal img.bpp, bpp
 		}
 	end
 
 	def test_to_bpp
-		[ImageBPP::GRAY, ImageBPP::BGR, ImageBPP::BGRA].each {|bpp|
+		[ImageBPP::GRAY, ImageBPP::BGRA].each {|bpp|
 			img = @img.to_bpp bpp
 			assert_equal img.bpp, bpp
 			assert_dim img
@@ -114,9 +114,9 @@ class TestImageSave < Test::Unit::TestCase
 			info = Image.ping temp.path
 			assert_equal info.cols, @w * 2
 			assert_equal info.rows, @h * 2
-			assert_equal info.bpp, @img.bpp
 			check_format f, info.format
+			bpp = ([".jpg", ".png"].include? f)? 24 : 32
+			assert_equal bpp, info.bpp
 		}
 	end
 end
-
