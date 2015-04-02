@@ -33,6 +33,17 @@ module RFreeImage
 			to_bpp 8
 		end
 
+		def bgra?
+			bpp == ImageBPP::BGRA
+		end
+
+		def to_bgra
+			return self if bgra?
+			to_bpp 32
+		end
+
+
 		alias_method :write, :save
+		alias_method :columns, :cols
 	end
 end
