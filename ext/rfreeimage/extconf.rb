@@ -6,6 +6,7 @@ $CFLAGS << " #{ENV["CFLAGS"]}"
 $CFLAGS << " -g"
 $CFLAGS << " -O3" unless $CFLAGS[/-O\d/]
 $CFLAGS << " -Wall -Wno-comment"
+$LDFLAGS << "-Wl,--exclude-libs=ALL"
 
 def sys(cmd)
 	puts " -- #{cmd}"
