@@ -449,6 +449,49 @@ VALUE Image_ping_blob(VALUE self, VALUE blob)
 	return v;
 }
 
+VALUE Image_from_bytes(VALUE self, VALUE bytes, VALUE width,
+		VALUE height, VALUE stride, VALUE bpp)
+{
+	long f_len;
+	int _bpp = NUM2INT(bpp);
+	char *ptr;
+	unsigned char *p;
+	int i;
+	int src_stride = NUM2INT(stride);
+	FIBITMAP *h;
+
+	ALLOC_NEW_IMAGE(v, img);
+
+	if (_bpp != 8 && _bpp != 32)
+		rb_raise(rb_eArgError, "bpp must be 8 or 32");
+	Check_Type(bytes, T_STRING);
+	f_len = RSTRING_LEN(bytes);
+	if (f_len < (long)src_stride * NUM2INT(height))
+		rb_raise(rb_eArgError, "buffer too small");
+
+	h = FreeImage_Allocate(NUM2INT(width), NUM2INT(height), _bpp, 0, 0, 0);
+	if (!h)
+		rb_raise(rb_eArgError, "fail to allocate image");
+
+	img->handle = h;
+	img->w = FreeImage_GetWidth(h);
+	img->h = FreeImage_GetHeight(h);
+	img->bpp = FreeImage_GetBPP(h);
+	img->stride = FreeImage_GetPitch(h);
+	img->fif = FIF_BMP;
+
+	/* up-side-down */
+	p = FreeImage_GetBits(img->handle);
+	ptr = RSTRING_PTR(bytes) + img->h * src_stride;
+	for(i = 0; i < img->h; i++) {
+		ptr -= src_stride;
+		memcpy(p, ptr, img->stride);
+		p += img->stride;
+	}
+
+	return v;
+}
+
 /* draw */
 VALUE Image_draw_point(VALUE self, VALUE _x, VALUE _y, VALUE color, VALUE _size)
 {
@@ -544,4 +587,5 @@ void Init_rfreeimage(void)
 	rb_define_singleton_method(Class_Image, "ping", Image_ping, 1);
 	rb_define_singleton_method(Class_Image, "from_blob", Image_from_blob, -1);
 	rb_define_singleton_method(Class_Image, "ping_blob", Image_ping_blob, 1);
+	rb_define_singleton_method(Class_Image, "from_bytes", Image_from_bytes, 5);
 }

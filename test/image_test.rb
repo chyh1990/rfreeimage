@@ -161,3 +161,25 @@ class TestImageSave < Test::Unit::TestCase
 		@img.write temp.path
 	end
 end
+
+class TestFromBytes < Test::Unit::TestCase
+  def test_smoke_from_bytes
+    data = "A" * (4 * 10 * 10)
+    assert_raise ArgumentError do
+      Image.from_bytes(data, 10, 20, 10 * 4, ImageBPP::BGRA)
+    end
+    assert_raise ArgumentError do
+      Image.from_bytes(data, 10, 20, 10 * 4, ImageBPP::BGR)
+    end
+  end
+
+  def test_from_bytes_bgra
+    blue = [255,0,0,255].pack('C4')
+    red = [0,0,255,255].pack('C4')
+    raw_image = ""
+    50.times { raw_image += blue * 50 + red * 50 }
+    150.times { raw_image += red * 100 }
+    img = Image.from_bytes(raw_image, 100, 200, 100 * 4, ImageBPP::BGRA)
+  end
+end
+
