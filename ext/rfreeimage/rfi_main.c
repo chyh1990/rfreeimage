@@ -218,6 +218,53 @@ VALUE Image_save(VALUE self, VALUE file)
 	return Qnil;
 }
 
+VALUE Image_to_blob(VALUE self, VALUE type)
+{
+	char *filetype;
+	struct native_image* img;
+	FIMEMORY *hmem;
+	BOOL result;
+	FREE_IMAGE_FORMAT out_fif;
+	VALUE ret;
+	BYTE *raw = NULL;
+	DWORD file_size;
+
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	Check_Type(type, T_STRING);
+	filetype = rfi_value_to_str(type);
+
+	out_fif = FreeImage_GetFIFFromFormat(filetype);
+	free(filetype);
+	if (out_fif == FIF_UNKNOWN)
+		rb_raise(Class_RFIError, "Invalid format");
+
+	hmem = FreeImage_OpenMemory(0, 0);
+	if (!hmem)
+		rb_raise(rb_eIOError, "Fail to allocate blob");
+	if (out_fif == FIF_JPEG && img->bpp != 8 && img->bpp != 24) {
+		FIBITMAP *to_save = FreeImage_ConvertTo24Bits(img->handle);
+		result = FreeImage_SaveToMemory(out_fif, to_save, hmem, JPEG_BASELINE);
+		FreeImage_Unload(to_save);
+	} else {
+		result = FreeImage_SaveToMemory(out_fif, img->handle, hmem, 0);
+	}
+
+	if(!result) {
+		FreeImage_CloseMemory(hmem);
+		rb_raise(rb_eIOError, "Fail to save image to blob");
+	}
+	file_size = FreeImage_TellMemory(hmem);
+	FreeImage_SeekMemory(hmem, 0, SEEK_SET);
+	FreeImage_AcquireMemory(hmem, &raw, &file_size);
+	ret = rb_str_new((char*)raw, (long)file_size);
+	FreeImage_CloseMemory(hmem);
+	return ret;
+}
+
+
+
 
 VALUE Image_cols(VALUE self)
 {
@@ -579,6 +626,7 @@ void Init_rfreeimage(void)
 	rb_define_method(Class_Image, "rotate", Image_rotate, 1);
 	rb_define_method(Class_Image, "resize", Image_resize, 2);
 	rb_define_method(Class_Image, "crop", Image_crop, 4);
+	rb_define_method(Class_Image, "to_blob", Image_to_blob, 1);
 
 	/* draw */
 	rb_define_method(Class_Image, "draw_point", Image_draw_point, 4);

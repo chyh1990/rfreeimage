@@ -160,6 +160,17 @@ class TestImageSave < Test::Unit::TestCase
 		temp = Tempfile.new ['out', '.png']
 		@img.write temp.path
 	end
+
+  def test_to_blob
+    b = @img.to_blob 'JPEG'
+    img1 = Image.from_blob b
+    assert_equal img1.cols, @w
+    assert_equal img1.rows, @h
+    # File.open('/tmp/xxx1.jpg', 'wb') { |io| io.write b }
+    assert_raise ImageError do
+      @img.to_blob 'JPEGXXX'
+    end
+  end
 end
 
 class TestFromBytes < Test::Unit::TestCase
