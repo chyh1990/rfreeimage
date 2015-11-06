@@ -101,7 +101,9 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 	}
 
 	if (ping) flags |= FIF_LOAD_NOPIXELS;
-	if (in_fif == FIF_JPEG) flags |= JPEG_EXIFROTATE;
+	// use JPEG_ACCURATE to keep sync with opencv
+	if (in_fif == FIF_JPEG)
+		flags |= JPEG_EXIFROTATE | JPEG_ACCURATE;
 	orig = FreeImage_Load(in_fif, filename, flags);
 	free(filename);
 	if (!orig)
