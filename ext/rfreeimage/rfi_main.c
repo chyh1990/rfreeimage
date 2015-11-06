@@ -129,6 +129,7 @@ rd_image_blob(VALUE clazz, VALUE blob, struct native_image *img, unsigned int bp
 {
 	FIBITMAP *h = NULL, *orig = NULL;
 	FIMEMORY *fmh;
+	int flags = 0;
 	FREE_IMAGE_FORMAT in_fif;
 
 	Check_Type(blob, T_STRING);
@@ -140,7 +141,10 @@ rd_image_blob(VALUE clazz, VALUE blob, struct native_image *img, unsigned int bp
 		rb_raise(rb_eIOError, "Invalid image blob");
 	}
 
-	orig = FreeImage_LoadFromMemory(in_fif, fmh, ping ? FIF_LOAD_NOPIXELS : 0 );
+	if (ping) flags |= FIF_LOAD_NOPIXELS;
+	if (in_fif == FIF_JPEG)
+		flags |= JPEG_EXIFROTATE | JPEG_ACCURATE;
+	orig = FreeImage_LoadFromMemory(in_fif, fmh, flags);
 	FreeImage_CloseMemory(fmh);
 	if (!orig)
 		rb_raise(rb_eIOError, "Fail to load image from memory");
