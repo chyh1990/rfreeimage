@@ -417,19 +417,23 @@ VALUE Image_clone(VALUE self)
 	return rfi_get_image(nh);
 }
 
-VALUE Image_resize(VALUE self, VALUE dst_width, VALUE dst_height)
+VALUE Image_rescale(VALUE self, VALUE dst_width, VALUE dst_height, VALUE filter_type)
 {
 	struct native_image *img;
 	FIBITMAP *nh;
 	int w = NUM2INT(dst_width);
 	int h = NUM2INT(dst_height);
+	int f = NUM2INT(filter_type);
 	if (w <= 0 || h <= 0)
 		rb_raise(rb_eArgError, "Invalid size");
+
+	if (f < FILTER_BOX || f > FILTER_LANCZOS3)
+		rb_raise(rb_eArgError, "Invalid image filter type");
 
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
 
-	nh = FreeImage_Rescale(img->handle, w, h, FILTER_CATMULLROM);
+	nh = FreeImage_Rescale(img->handle, w, h, f);
 	return rfi_get_image(nh);
 }
 
@@ -630,7 +634,7 @@ void Init_rfreeimage(void)
 
 	rb_define_method(Class_Image, "to_bpp", Image_to_bpp, 1);
 	rb_define_method(Class_Image, "rotate", Image_rotate, 1);
-	rb_define_method(Class_Image, "resize", Image_resize, 2);
+	rb_define_method(Class_Image, "rescale", Image_rescale, 3);
 	rb_define_method(Class_Image, "crop", Image_crop, 4);
 	rb_define_method(Class_Image, "to_blob", Image_to_blob, 1);
 
