@@ -194,3 +194,33 @@ class TestFromBytes < Test::Unit::TestCase
   end
 end
 
+class TestResizeFilter < Test::Unit::TestCase
+	def setup
+		@img = Image.new get_image("test.jpg")
+		@w = @img.cols
+		@h = @img.rows
+	end
+
+	def test_invalid_filter
+		assert_raise do
+			rimg1 = @img.resize @w * 2, @h * 2, -1
+		end
+
+		assert_raise do
+			rimg1 = @img.resize @w * 2, @h * 2, 6
+		end
+	end
+
+	def test_default_filter
+		rimg = @img.resize @w * 2, @h * 2
+		cimg = @img.resize @w * 2, @h * 2, Filter::FILTER_CATMULLROM
+		assert_equal rimg.format, "BMP"
+		assert_equal rimg.bytes, cimg.bytes
+	end
+
+	def test_bilinear_filter
+		rimg = @img.resize @w * 2, @h * 2, Filter::FILTER_BILINEAR
+		assert_equal rimg.format, "BMP"
+	end
+
+end
