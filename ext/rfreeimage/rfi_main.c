@@ -437,6 +437,47 @@ VALUE Image_rescale(VALUE self, VALUE dst_width, VALUE dst_height, VALUE filter_
 	return rfi_get_image(nh);
 }
 
+VALUE Image_fast_zoomout(VALUE self, VALUE max_size) {
+  // down-sample resize
+  struct native_image *img;
+  FIBITMAP *nh;
+  int i;
+  int j;
+  int w;
+  int h;
+  int scale;
+  int mlen;
+  int msize = NUM2INT(max_size);
+  int cpp;
+  unsigned char *ph;
+  unsigned char *pnh;
+  
+  Data_Get_Struct(self, struct native_image, img);
+  RFI_CHECK_IMG(img);
+
+  mlen = img->w > img->h ? img->w : img->h;
+  if (msize <= 0 || msize >= mlen) {
+    nh = FreeImage_Copy(img->handle, 0, 0, img->w, img->h);
+  } else {
+    scale = (mlen + msize - 1)  / msize;
+    w = (img->w + scale - 1) / scale;
+    h = (img->h + scale - 1) / scale;
+    nh = FreeImage_Allocate(w, h, img->bpp, 0, 0, 0);
+    if (!nh)
+      rb_raise(rb_eArgError, "fail to allocate image");
+
+    ph = FreeImage_GetBits(img->handle);
+    pnh = FreeImage_GetBits(nh);
+    cpp = img->bpp / 8;
+    for(i = 0; i < h; i++) {
+      for(j = 0; j < w; j++) {
+        memcpy(pnh + (i * w + j) * cpp, ph + (i * img->w + j) * scale * cpp, cpp);
+      }
+    }
+  }
+  return rfi_get_image(nh);
+}
+
 VALUE Image_crop(VALUE self, VALUE _left, VALUE _top, VALUE _right, VALUE _bottom)
 {
 	struct native_image *img;
@@ -635,6 +676,7 @@ void Init_rfreeimage(void)
 	rb_define_method(Class_Image, "to_bpp", Image_to_bpp, 1);
 	rb_define_method(Class_Image, "rotate", Image_rotate, 1);
 	rb_define_method(Class_Image, "rescale", Image_rescale, 3);
+	rb_define_method(Class_Image, "fast_zoomout", Image_fast_zoomout, 1);
 	rb_define_method(Class_Image, "crop", Image_crop, 4);
 	rb_define_method(Class_Image, "to_blob", Image_to_blob, 1);
 
