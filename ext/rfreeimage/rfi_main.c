@@ -85,7 +85,8 @@ convert_bpp(FIBITMAP *orig, unsigned int bpp) {
 }
 
 static void
-rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BOOL ping)
+rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BOOL ping,
+		int max_size_hint)
 {
 	char *filename;
 	int flags = 0;
@@ -99,8 +100,11 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 		free(filename);
 		rb_raise(rb_eIOError, "Invalid image file");
 	}
+	if (max_size_hint < 0 || max_size_hint > 65535)
+		rb_raise(rb_eArgError, "Invalid max_size_hint");
 
 	if (ping) flags |= FIF_LOAD_NOPIXELS;
+	if (!ping) flags |= max_size_hint << 16;
 	// use JPEG_ACCURATE to keep sync with opencv
 	if (in_fif == FIF_JPEG)
 		flags |= JPEG_EXIFROTATE | JPEG_ACCURATE;
@@ -125,7 +129,7 @@ rd_image(VALUE clazz, VALUE file, struct native_image *img, unsigned int bpp, BO
 }
 
 static void
-rd_image_blob(VALUE clazz, VALUE blob, struct native_image *img, unsigned int bpp, BOOL ping)
+rd_image_blob(VALUE clazz, VALUE blob, struct native_image *img, unsigned int bpp, BOOL ping, int max_size_hint)
 {
 	FIBITMAP *h = NULL, *orig = NULL;
 	FIMEMORY *fmh;
@@ -140,8 +144,11 @@ rd_image_blob(VALUE clazz, VALUE blob, struct native_image *img, unsigned int bp
 		FreeImage_CloseMemory(fmh);
 		rb_raise(rb_eIOError, "Invalid image blob");
 	}
+	if (max_size_hint < 0 || max_size_hint > 65535)
+		rb_raise(rb_eArgError, "Invalid max_size_hint");
 
 	if (ping) flags |= FIF_LOAD_NOPIXELS;
+	if (!ping) flags |= max_size_hint << 16;
 	if (in_fif == FIF_JPEG)
 		flags |= JPEG_EXIFROTATE | JPEG_ACCURATE;
 	orig = FreeImage_LoadFromMemory(in_fif, fmh, flags);
@@ -174,10 +181,13 @@ VALUE Image_initialize(int argc, VALUE *argv, VALUE self)
 	switch (argc)
 	{
 		case 1:
-			rd_image(self, argv[0], img, 0, 0);
+			rd_image(self, argv[0], img, 0, 0, 0);
 			break;
 		case 2:
-			rd_image(self, argv[0], img, NUM2INT(argv[1]), 0);
+			rd_image(self, argv[0], img, NUM2INT(argv[1]), 0, 0);
+			break;
+		case 3:
+			rd_image(self, argv[0], img, NUM2INT(argv[1]), 0, NUM2INT(argv[2]));
 			break;
 		default:
 			rb_raise(rb_eArgError, "wrong number of arguments (%d for 1)", argc);
@@ -463,8 +473,8 @@ VALUE Image_downscale(VALUE self, VALUE max_size) {
 			rb_raise(rb_eArgError, "bpp not supported");
 
 		scale = (mlen + msize - 1)  / msize;
-		w = (img->w + scale - 1) / scale;
-		h = (img->h + scale - 1) / scale;
+		w = img->w / scale;
+		h = img->h / scale;
 		nh = FreeImage_Allocate(w, h, img->bpp, 0, 0, 0);
 		if (!nh)
 			rb_raise(rb_eArgError, "fail to allocate image");
@@ -520,7 +530,7 @@ VALUE Image_ping(VALUE self, VALUE file)
 {
 	ALLOC_NEW_IMAGE(v, img);
 
-	rd_image(self, file, img, 0, 1);
+	rd_image(self, file, img, 0, 1, 0);
 	if (img->handle)
 		FreeImage_Unload(img->handle);
 	img->handle = NULL;
@@ -535,10 +545,13 @@ VALUE Image_from_blob(int argc, VALUE *argv, VALUE self)
 	switch (argc)
 	{
 		case 1:
-			rd_image_blob(self, argv[0], img, 0, 0);
+			rd_image_blob(self, argv[0], img, 0, 0, 0);
 			break;
 		case 2:
-			rd_image_blob(self, argv[0], img, NUM2INT(argv[1]), 0);
+			rd_image_blob(self, argv[0], img, NUM2INT(argv[1]), 0, 0);
+			break;
+		case 3:
+			rd_image_blob(self, argv[0], img, NUM2INT(argv[1]), 0, NUM2INT(argv[2]));
 			break;
 		default:
 			rb_raise(rb_eArgError, "wrong number of arguments (%d for 1)", argc);
@@ -552,7 +565,7 @@ VALUE Image_ping_blob(VALUE self, VALUE blob)
 {
 	ALLOC_NEW_IMAGE(v, img);
 
-	rd_image_blob(self, blob, img, 0, 1);
+	rd_image_blob(self, blob, img, 0, 1, 0);
 	if (img->handle)
 		FreeImage_Unload(img->handle);
 	img->handle = NULL;

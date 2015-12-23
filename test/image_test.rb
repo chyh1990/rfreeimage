@@ -227,7 +227,7 @@ end
 
 class TestFastZoomout < Test::Unit::TestCase
   def setup
-    @img = Image.new get_image("test.jpg");
+    @img = Image.new get_image("test.jpg")
     @gray = @img.to_gray
   end
 
@@ -253,5 +253,17 @@ class TestFastZoomout < Test::Unit::TestCase
 
     nimg2 = @gray.downscale 294
     # nimg2.write '/tmp/t2.jpg'
+  end
+
+  def test_load_downscale
+    img = Image.load_downscale get_image("test.jpg"), 100
+    assert img.cols <= 100
+    assert img.rows <= 100
+
+    ['JPEG', 'PNG'].each do |f|
+      img1 = Image.from_blob_downscale @img.to_blob(f), 100
+      assert img.cols <= 100
+      assert img.rows <= 100
+    end
   end
 end

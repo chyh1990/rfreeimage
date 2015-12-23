@@ -54,8 +54,27 @@ module RFreeImage
 			return self.rescale(width, height, filter)
 		end
 
+    def self.load_downscale file, max_size
+      # only work on jpeg
+      img = Image.new file, 0, max_size
+      _downscale_nocopy img, max_size
+    end
+
+    def self.from_blob_downscale blob, max_size
+      # only work on jpeg
+      img = Image.from_blob blob, 0, max_size
+      _downscale_nocopy img, max_size
+    end
 
 		alias_method :write, :save
 		alias_method :columns, :cols
-	end
+
+    private
+    def self._downscale_nocopy img, max_size
+      return img if img.cols <= max_size && img.rows <= max_size
+      nimg = img.downscale max_size
+      img.destroy!
+      nimg
+    end
+  end
 end
