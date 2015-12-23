@@ -224,3 +224,34 @@ class TestResizeFilter < Test::Unit::TestCase
 	end
 
 end
+
+class TestFastZoomout < Test::Unit::TestCase
+  def setup
+    @img = Image.new get_image("test.jpg");
+    @gray = @img.to_gray
+  end
+
+  def test_nothing_todo
+    nimg1 = @img.downscale 0
+    nimg2 = @img.downscale 600
+    assert_equal nimg1.cols, @img.cols
+    assert_equal nimg1.rows, @img.rows
+    assert_equal nimg1.cols, @img.cols
+    assert_equal nimg1.rows, @img.rows
+  end
+
+  def test_valid_zoomout
+    nimg1 = @img.downscale 587
+    assert_equal nimg1.cols, 250
+    assert_equal nimg1.rows, 294
+
+    # nimg1.write '/tmp/t1.jpg'
+
+    nimg1 = @img.downscale 294
+    assert_equal nimg1.cols, 250
+    assert_equal nimg1.rows, 294
+
+    nimg2 = @gray.downscale 294
+    # nimg2.write '/tmp/t2.jpg'
+  end
+end
