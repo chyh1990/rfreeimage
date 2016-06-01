@@ -1,4 +1,4 @@
-source "http://ruby.taobao.org"
+source "https://ruby.taobao.org"
 
 platforms :rbx do
   gem 'rubysl', '~> 2.0'

@@ -39,7 +39,7 @@ struct native_image {
 	FIBITMAP *handle;
 };
 
-void Image_free(struct native_image* img)
+static void Image_free(struct native_image* img)
 {
 	if(!img)
 		return;
@@ -48,7 +48,7 @@ void Image_free(struct native_image* img)
 	free(img);
 }
 
-VALUE Image_alloc(VALUE self)
+static VALUE Image_alloc(VALUE self)
 {
 	/* allocate */
 	struct native_image* img = malloc(sizeof(struct native_image));
@@ -172,7 +172,7 @@ rd_image_blob(VALUE clazz, VALUE blob, struct native_image *img, unsigned int bp
 	img->fif = in_fif;
 }
 
-VALUE Image_initialize(int argc, VALUE *argv, VALUE self)
+static VALUE Image_initialize(int argc, VALUE *argv, VALUE self)
 {
 	struct native_image* img;
 	/* unwrap */
@@ -200,7 +200,7 @@ VALUE Image_initialize(int argc, VALUE *argv, VALUE self)
 #define RFI_CHECK_IMG(x) \
 	if (!img->handle) rb_raise(Class_RFIError, "Image pixels not loaded");
 
-VALUE Image_save(VALUE self, VALUE file)
+static VALUE Image_save(VALUE self, VALUE file)
 {
 	char *filename;
 	struct native_image* img;
@@ -234,7 +234,7 @@ VALUE Image_save(VALUE self, VALUE file)
 	return Qnil;
 }
 
-VALUE Image_to_blob(VALUE self, VALUE type)
+static VALUE Image_to_blob(VALUE self, VALUE type)
 {
 	char *filetype;
 	struct native_image* img;
@@ -282,35 +282,35 @@ VALUE Image_to_blob(VALUE self, VALUE type)
 
 
 
-VALUE Image_cols(VALUE self)
+static VALUE Image_cols(VALUE self)
 {
 	struct native_image* img;
 	Data_Get_Struct(self, struct native_image, img);
 	return INT2NUM(img->w);
 }
 
-VALUE Image_rows(VALUE self)
+static VALUE Image_rows(VALUE self)
 {
 	struct native_image* img;
 	Data_Get_Struct(self, struct native_image, img);
 	return INT2NUM(img->h);
 }
 
-VALUE Image_bpp(VALUE self)
+static VALUE Image_bpp(VALUE self)
 {
 	struct native_image* img;
 	Data_Get_Struct(self, struct native_image, img);
 	return INT2NUM(img->bpp);
 }
 
-VALUE Image_stride(VALUE self)
+static VALUE Image_stride(VALUE self)
 {
 	struct native_image* img;
 	Data_Get_Struct(self, struct native_image, img);
 	return INT2NUM(img->stride);
 }
 
-VALUE Image_format(VALUE self)
+static VALUE Image_format(VALUE self)
 {
 	struct native_image* img;
 	const char *p;
@@ -319,7 +319,7 @@ VALUE Image_format(VALUE self)
 	return rb_str_new(p, strlen(p));
 }
 
-VALUE Image_release(VALUE self)
+static VALUE Image_release(VALUE self)
 {
 	struct native_image* img;
 	Data_Get_Struct(self, struct native_image, img);
@@ -330,7 +330,7 @@ VALUE Image_release(VALUE self)
 }
 
 
-VALUE Image_read_bytes(VALUE self)
+static VALUE Image_read_bytes(VALUE self)
 {
 	struct native_image* img;
 	const char *p;
@@ -355,7 +355,7 @@ VALUE Image_read_bytes(VALUE self)
 	return v;
 }
 
-VALUE Image_buffer_addr(VALUE self)
+static VALUE Image_buffer_addr(VALUE self)
 {
 	struct native_image* img;
 	const char *p;
@@ -366,7 +366,7 @@ VALUE Image_buffer_addr(VALUE self)
 	return ULONG2NUM((uintptr_t)p);
 }
 
-VALUE Image_has_bytes(VALUE self)
+static VALUE Image_has_bytes(VALUE self)
 {
 	struct native_image* img;
 	Data_Get_Struct(self, struct native_image, img);
@@ -388,7 +388,7 @@ static inline VALUE rfi_get_image(FIBITMAP *nh)
 	return Data_Wrap_Struct(Class_Image, NULL, Image_free, new_img);
 }
 
-VALUE Image_to_bpp(VALUE self, VALUE _bpp)
+static VALUE Image_to_bpp(VALUE self, VALUE _bpp)
 {
 	struct native_image *img;
 	FIBITMAP *nh;
@@ -404,7 +404,7 @@ VALUE Image_to_bpp(VALUE self, VALUE _bpp)
 	return rfi_get_image(nh);
 }
 
-VALUE Image_rotate(VALUE self, VALUE _angle)
+static VALUE Image_rotate(VALUE self, VALUE _angle)
 {
 	struct native_image *img;
 	FIBITMAP *nh;
@@ -416,7 +416,7 @@ VALUE Image_rotate(VALUE self, VALUE _angle)
 	return rfi_get_image(nh);
 }
 
-VALUE Image_clone(VALUE self)
+static VALUE Image_clone(VALUE self)
 {
 	struct native_image *img;
 	FIBITMAP *nh;
@@ -427,7 +427,7 @@ VALUE Image_clone(VALUE self)
 	return rfi_get_image(nh);
 }
 
-VALUE Image_rescale(VALUE self, VALUE dst_width, VALUE dst_height, VALUE filter_type)
+static VALUE Image_rescale(VALUE self, VALUE dst_width, VALUE dst_height, VALUE filter_type)
 {
 	struct native_image *img;
 	FIBITMAP *nh;
@@ -447,7 +447,7 @@ VALUE Image_rescale(VALUE self, VALUE dst_width, VALUE dst_height, VALUE filter_
 	return rfi_get_image(nh);
 }
 
-VALUE Image_downscale(VALUE self, VALUE max_size) {
+static VALUE Image_downscale(VALUE self, VALUE max_size) {
 	// down-sample resize
 	struct native_image *img;
 	FIBITMAP *nh;
@@ -501,7 +501,7 @@ VALUE Image_downscale(VALUE self, VALUE max_size) {
 	return rfi_get_image(nh);
 }
 
-VALUE Image_crop(VALUE self, VALUE _left, VALUE _top, VALUE _right, VALUE _bottom)
+static VALUE Image_crop(VALUE self, VALUE _left, VALUE _top, VALUE _right, VALUE _bottom)
 {
 	struct native_image *img;
 	FIBITMAP *nh;
@@ -526,7 +526,7 @@ VALUE Image_crop(VALUE self, VALUE _left, VALUE _top, VALUE _right, VALUE _botto
 	struct native_image* img;                        \
 	Data_Get_Struct(__v, struct native_image, img)   \
 
-VALUE Image_ping(VALUE self, VALUE file)
+static VALUE Image_ping(VALUE self, VALUE file)
 {
 	ALLOC_NEW_IMAGE(v, img);
 
@@ -538,7 +538,7 @@ VALUE Image_ping(VALUE self, VALUE file)
 	return v;
 }
 
-VALUE Image_from_blob(int argc, VALUE *argv, VALUE self)
+static VALUE Image_from_blob(int argc, VALUE *argv, VALUE self)
 {
 	ALLOC_NEW_IMAGE(v, img);
 
@@ -561,7 +561,7 @@ VALUE Image_from_blob(int argc, VALUE *argv, VALUE self)
 	return v;
 }
 
-VALUE Image_ping_blob(VALUE self, VALUE blob)
+static VALUE Image_ping_blob(VALUE self, VALUE blob)
 {
 	ALLOC_NEW_IMAGE(v, img);
 
@@ -573,7 +573,7 @@ VALUE Image_ping_blob(VALUE self, VALUE blob)
 	return v;
 }
 
-VALUE Image_from_bytes(VALUE self, VALUE bytes, VALUE width,
+static VALUE Image_from_bytes(VALUE self, VALUE bytes, VALUE width,
 		VALUE height, VALUE stride, VALUE bpp)
 {
 	long f_len;
@@ -617,7 +617,7 @@ VALUE Image_from_bytes(VALUE self, VALUE bytes, VALUE width,
 }
 
 /* draw */
-VALUE Image_draw_point(VALUE self, VALUE _x, VALUE _y, VALUE color, VALUE _size)
+static VALUE Image_draw_point(VALUE self, VALUE _x, VALUE _y, VALUE color, VALUE _size)
 {
 	struct native_image* img;
 	int x = NUM2INT(_x);
@@ -640,7 +640,7 @@ VALUE Image_draw_point(VALUE self, VALUE _x, VALUE _y, VALUE color, VALUE _size)
 	return self;
 }
 
-VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
+static VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 		VALUE _x2, VALUE _y2,
 		VALUE color, VALUE _width)
 {
