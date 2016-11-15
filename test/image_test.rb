@@ -267,3 +267,23 @@ class TestFastZoomout < Test::Unit::TestCase
     end
   end
 end
+
+class TestFlip < Test::Unit::TestCase
+  def setup
+    @img = Image.new get_image("test.jpg")
+  end
+
+  def test_flip_horizontal
+    img_flip_h = @img.flip_horizontal
+    assert_equal img_flip_h.cols , @img.cols
+    assert_equal img_flip_h.rows , @img.rows
+    assert_not_equal img_flip_h.bytes, @img.bytes
+  end
+
+  def test_flip_vertical
+    img_flip_v = @img.flip_vertical
+    assert_equal img_flip_v.cols , @img.cols
+    assert_equal img_flip_v.rows , @img.rows
+    assert_not_equal img_flip_v.bytes, @img.bytes
+  end
+end

@@ -29,4 +29,5 @@ Gem::Specification.new do |s|
 desc
   s.add_development_dependency "rake-compiler", ">= 0.9.0"
   s.add_development_dependency "minitest", "~> 3.0.0"
+  s.add_development_dependency "test-unit"
 end

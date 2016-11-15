@@ -501,6 +501,30 @@ static VALUE Image_downscale(VALUE self, VALUE max_size) {
 	return rfi_get_image(nh);
 }
 
+static VALUE Image_flip_horizontal(VALUE self) {
+	struct native_image *img;
+	FIBITMAP *nh;
+
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+	nh = FreeImage_Clone(img->handle);
+	if(FreeImage_FlipHorizontal(nh) == FALSE)
+		rb_raise(Class_RFIError, "Malloc Failed");
+	return rfi_get_image(nh);
+}
+
+static VALUE Image_flip_vertical(VALUE self) {
+	struct native_image *img;
+	FIBITMAP *nh;
+
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+	nh = FreeImage_Clone(img->handle);
+	if(FreeImage_FlipVertical(nh) == FALSE)
+		rb_raise(Class_RFIError, "Malloc Failed");
+	return rfi_get_image(nh);
+}
+
 static VALUE Image_crop(VALUE self, VALUE _left, VALUE _top, VALUE _right, VALUE _bottom)
 {
 	struct native_image *img;
@@ -705,6 +729,8 @@ void Init_rfreeimage(void)
 	rb_define_method(Class_Image, "downscale", Image_downscale, 1);
 	rb_define_method(Class_Image, "crop", Image_crop, 4);
 	rb_define_method(Class_Image, "to_blob", Image_to_blob, 1);
+	rb_define_method(Class_Image, "flip_horizontal", Image_flip_horizontal, 0);
+	rb_define_method(Class_Image, "flip_vertical", Image_flip_vertical, 0);
 
 	/* draw */
 	rb_define_method(Class_Image, "draw_point", Image_draw_point, 4);
