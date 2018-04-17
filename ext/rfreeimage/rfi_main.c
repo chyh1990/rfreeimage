@@ -698,6 +698,29 @@ static VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 	return self;
 }
 
+static VALUE Image_fill_rectangle(VALUE self, VALUE _x1, VALUE _y1,
+		VALUE _x2, VALUE _y2,
+		VALUE color)
+{
+	struct native_image* img;
+	int x1 = NUM2INT(_x1);
+	int y1 = NUM2INT(_y1);
+	int x2 = NUM2INT(_x2);
+	int y2 = NUM2INT(_y2);
+	unsigned int bgra = NUM2UINT(color);
+	
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+  int i, j;
+	for(i = x1; i <= x2; i++) {
+		for(j = y1; j <= y2; j++) {
+			FreeImage_SetPixelColor(img->handle, i, img->h - j, (RGBQUAD*)&bgra);
+		}
+	}
+
+	return self;
+}
 
 
 void Init_rfreeimage(void)
@@ -735,6 +758,7 @@ void Init_rfreeimage(void)
 	/* draw */
 	rb_define_method(Class_Image, "draw_point", Image_draw_point, 4);
 	rb_define_method(Class_Image, "draw_rectangle", Image_draw_rectangle, 4 + 2);
+	rb_define_method(Class_Image, "fill_rectangle", Image_fill_rectangle, 4 + 1);
 
 	rb_define_singleton_method(Class_Image, "ping", Image_ping, 1);
 	rb_define_singleton_method(Class_Image, "from_blob", Image_from_blob, -1);
