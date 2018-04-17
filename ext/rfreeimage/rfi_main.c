@@ -16,6 +16,15 @@ static void __rfi_module_uninit() {
 	FreeImage_DeInitialise();
 }
 
+static void try_sort(int *x, int *y)
+{
+	if(*y < *x ){
+		int tmp = *x;
+		*x = *y;
+		*y = tmp;
+	}
+}
+
 static VALUE rb_rfi_version(VALUE self)
 {
 	return rb_ary_new3(3, INT2NUM(FREEIMAGE_MAJOR_VERSION),
@@ -681,6 +690,9 @@ static VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
 
+	try_sort(&x1, &x2);
+	try_sort(&y1, &y2);
+
 	for(i = -hs; i <= hs; i++) {
 		for(j = x1; j <= x2; j++) {
 			FreeImage_SetPixelColor(img->handle, j, img->h - (y1 + i) - 1, (RGBQUAD*)&bgra);
@@ -708,11 +720,14 @@ static VALUE Image_fill_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 	int x2 = NUM2INT(_x2);
 	int y2 = NUM2INT(_y2);
 	unsigned int bgra = NUM2UINT(color);
+	int i, j;
 	
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
 
-  int i, j;
+	try_sort(&x1, &x2);
+	try_sort(&y1, &y2);
+
 	for(i = x1; i <= x2; i++) {
 		for(j = y1; j <= y2; j++) {
 			FreeImage_SetPixelColor(img->handle, i, img->h - j, (RGBQUAD*)&bgra);
