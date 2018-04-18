@@ -48,6 +48,67 @@ struct native_image {
 	FIBITMAP *handle;
 };
 
+static void dd_line(struct native_image* img, int x0, int y0,
+		int x1,int y1,
+		unsigned int bgra, int size)
+{
+	float x, dx, dy, y, k, deta, threshold=0.0001;
+	int hs = size / 2, i;
+
+	dx = x1-x0;
+	dy = y1-y0;
+
+	if(dx < threshold && dx > -threshold){
+		k = 0.0;
+	}
+	else
+	{
+		k=dy * 1.0 / dx;
+	}
+
+	if(dx > threshold)
+	{
+		deta = k > 1 ? 1.0 / k : 1;
+		for(i = -hs; i <= hs; i++) {
+			y = y0;
+			for (x = x0; x <= x1; x += deta){
+				FreeImage_SetPixelColor(img->handle, x + i, img->h - (y + i) - 1 , (RGBQUAD*)&bgra);
+				y = y + k * deta;
+			}
+		}
+	}
+	else if(dx < -threshold)
+	{
+		deta = k > 1 ? 1.0 / k : 1;
+		for(i = -hs; i <= hs; i++) {
+			y = y0;
+			for (x = x0; x >= x1; x -= deta){
+				FreeImage_SetPixelColor(img->handle, x + i, img->h - (y + i) - 1, (RGBQUAD*)&bgra);
+				y = y - k * deta;
+			}
+		}
+	}
+	else
+	{
+		if(dy >= 0)
+		{
+			for(i = -hs; i <= hs; i++) {
+				for (y = y0; y <= y1; y++){
+					FreeImage_SetPixelColor(img->handle, x0 + i, img->h - (y + i) - 1, (RGBQUAD*)&bgra);
+				}
+			}
+		}
+		else
+		{
+			for(i = -hs; i <= hs; i++) {
+				for (y = y0; y >= y1; y--){
+					FreeImage_SetPixelColor(img->handle, x0 + i, img->h - (y + i) - 1, (RGBQUAD*)&bgra);
+				}
+			}
+		}
+	}
+}
+
 static void Image_free(struct native_image* img)
 {
 	if(!img)
@@ -710,6 +771,40 @@ static VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 	return self;
 }
 
+/*
+daw arbitrari quadrangle
+four point is　given clockwise ordered
+*/
+static VALUE Image_draw_quadrangle(VALUE self, VALUE _x1, VALUE _y1,
+		VALUE _x2, VALUE _y2,
+		VALUE _x3, VALUE _y3,
+		VALUE _x4, VALUE _y4,
+		VALUE color, VALUE _width)
+{
+	struct native_image* img;
+	int x1 = NUM2INT(_x1);
+	int y1 = NUM2INT(_y1);
+	int x2 = NUM2INT(_x2);
+	int y2 = NUM2INT(_y2);
+	int x3 = NUM2INT(_x3);
+	int y3 = NUM2INT(_y3);
+	int x4 = NUM2INT(_x4);
+	int y4 = NUM2INT(_y4);
+	int size = NUM2INT(_width);
+	unsigned int bgra = NUM2UINT(color);
+	if (size < 0)
+		rb_raise(rb_eArgError, "Invalid line width: %d", size);
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	dd_line(img, x1, y1, x2, y2, bgra, size);
+	dd_line(img, x2, y2, x3, y3, bgra, size);
+	dd_line(img, x3, y3, x4, y4, bgra, size);
+	dd_line(img, x4, y4, x1, y1, bgra, size);
+
+	return self;
+}
+
 static VALUE Image_fill_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 		VALUE _x2, VALUE _y2,
 		VALUE color)
@@ -773,7 +868,9 @@ void Init_rfreeimage(void)
 	/* draw */
 	rb_define_method(Class_Image, "draw_point", Image_draw_point, 4);
 	rb_define_method(Class_Image, "draw_rectangle", Image_draw_rectangle, 4 + 2);
+	rb_define_method(Class_Image, "draw_quadrangle", Image_draw_quadrangle, 8 + 2);
 	rb_define_method(Class_Image, "fill_rectangle", Image_fill_rectangle, 4 + 1);
+	// rb_define_method(Class_Image, "fill_quadrangle", Image_draw_quadrangle, 4 + 2);
 
 	rb_define_singleton_method(Class_Image, "ping", Image_ping, 1);
 	rb_define_singleton_method(Class_Image, "from_blob", Image_from_blob, -1);
