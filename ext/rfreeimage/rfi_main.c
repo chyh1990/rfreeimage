@@ -752,6 +752,27 @@ static VALUE Image_draw_point(VALUE self, VALUE _x, VALUE _y, VALUE color, VALUE
 	return self;
 }
 
+static VALUE Image_draw_line(VALUE self, VALUE _x1, VALUE _y1,
+		VALUE _x2, VALUE _y2,
+		VALUE color, VALUE _size)
+{
+	struct native_image* img;
+	int x1 = NUM2INT(_x1);
+	int y1 = NUM2INT(_y1);
+	int x2 = NUM2INT(_x2);
+	int y2 = NUM2INT(_y2);
+	int size = NUM2INT(_size);
+	unsigned int bgra = NUM2UINT(color);
+	if (size < 0)
+		rb_raise(rb_eArgError, "Invalid point size: %d", size);
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	dd_line(img, x1, y1, x2, y2, bgra, size);
+
+	return self;
+}
+
 static VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 		VALUE _x2, VALUE _y2,
 		VALUE color, VALUE _width)
@@ -935,6 +956,7 @@ void Init_rfreeimage(void)
 
 	/* draw */
 	rb_define_method(Class_Image, "draw_point", Image_draw_point, 4);
+	rb_define_method(Class_Image, "draw_line", Image_draw_line, 4 + 2);
 	rb_define_method(Class_Image, "draw_rectangle", Image_draw_rectangle, 4 + 2);
 	rb_define_method(Class_Image, "draw_quadrangle", Image_draw_quadrangle, 8 + 2);
 	rb_define_method(Class_Image, "fill_rectangle", Image_fill_rectangle, 4 + 1);
