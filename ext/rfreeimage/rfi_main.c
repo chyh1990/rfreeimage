@@ -16,6 +16,33 @@ static void __rfi_module_uninit() {
 	FreeImage_DeInitialise();
 }
 
+static void try_sort(int *x, int *y)
+{
+	if(*y < *x ){
+		int tmp = *x;
+		*x = *y;
+		*y = tmp;
+	}
+}
+
+static int min_of_arrary(int x1, int x2, int x3, int x4)
+{
+	int m = x1;
+	if(x2 < m) m = x2;
+	if(x3 < m) m = x3;
+	if(x4 < m) m = x4;
+	return m;
+}
+
+static int max_of_arrary(int x1, int x2, int x3, int x4)
+{
+	int m = x1;
+	if(x2 > m) m = x2;
+	if(x3 > m) m = x3;
+	if(x4 > m) m = x4;
+	return m;
+}
+
 static VALUE rb_rfi_version(VALUE self)
 {
 	return rb_ary_new3(3, INT2NUM(FREEIMAGE_MAJOR_VERSION),
@@ -38,6 +65,67 @@ struct native_image {
 	FREE_IMAGE_FORMAT fif;
 	FIBITMAP *handle;
 };
+
+static void dd_line(struct native_image* img, int x0, int y0,
+		int x1,int y1,
+		unsigned int bgra, int size)
+{
+	float x, dx, dy, y, k, deta, threshold=0.0001;
+	int hs = size / 2, i;
+
+	dx = x1-x0;
+	dy = y1-y0;
+
+	if(dx < threshold && dx > -threshold){
+		k = 0.0;
+	}
+	else
+	{
+		k=dy * 1.0 / dx;
+	}
+
+	if(dx > threshold)
+	{
+		deta = k > 1 ? 1.0 / k : 1;
+		for(i = -hs; i <= hs; i++) {
+			y = y0;
+			for (x = x0; x <= x1; x += deta){
+				FreeImage_SetPixelColor(img->handle, x + i, img->h - (y + i) - 1 , (RGBQUAD*)&bgra);
+				y = y + k * deta;
+			}
+		}
+	}
+	else if(dx < -threshold)
+	{
+		deta = k > 1 ? 1.0 / k : 1;
+		for(i = -hs; i <= hs; i++) {
+			y = y0;
+			for (x = x0; x >= x1; x -= deta){
+				FreeImage_SetPixelColor(img->handle, x + i, img->h - (y + i) - 1, (RGBQUAD*)&bgra);
+				y = y - k * deta;
+			}
+		}
+	}
+	else
+	{
+		if(dy >= 0)
+		{
+			for(i = -hs; i <= hs; i++) {
+				for (y = y0; y <= y1; y++){
+					FreeImage_SetPixelColor(img->handle, x0 + i, img->h - (y + i) - 1, (RGBQUAD*)&bgra);
+				}
+			}
+		}
+		else
+		{
+			for(i = -hs; i <= hs; i++) {
+				for (y = y0; y >= y1; y--){
+					FreeImage_SetPixelColor(img->handle, x0 + i, img->h - (y + i) - 1, (RGBQUAD*)&bgra);
+				}
+			}
+		}
+	}
+}
 
 static void Image_free(struct native_image* img)
 {
@@ -664,6 +752,27 @@ static VALUE Image_draw_point(VALUE self, VALUE _x, VALUE _y, VALUE color, VALUE
 	return self;
 }
 
+static VALUE Image_draw_line(VALUE self, VALUE _x1, VALUE _y1,
+		VALUE _x2, VALUE _y2,
+		VALUE color, VALUE _size)
+{
+	struct native_image* img;
+	int x1 = NUM2INT(_x1);
+	int y1 = NUM2INT(_y1);
+	int x2 = NUM2INT(_x2);
+	int y2 = NUM2INT(_y2);
+	int size = NUM2INT(_size);
+	unsigned int bgra = NUM2UINT(color);
+	if (size < 0)
+		rb_raise(rb_eArgError, "Invalid point size: %d", size);
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	dd_line(img, x1, y1, x2, y2, bgra, size);
+
+	return self;
+}
+
 static VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 		VALUE _x2, VALUE _y2,
 		VALUE color, VALUE _width)
@@ -680,6 +789,9 @@ static VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 		rb_raise(rb_eArgError, "Invalid line width: %d", size);
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
+
+	try_sort(&x1, &x2);
+	try_sort(&y1, &y2);
 
 	for(i = -hs; i <= hs; i++) {
 		for(j = x1; j <= x2; j++) {
@@ -698,6 +810,40 @@ static VALUE Image_draw_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 	return self;
 }
 
+/*
+daw arbitrari quadrangle
+four point is　given clockwise ordered
+*/
+static VALUE Image_draw_quadrangle(VALUE self, VALUE _x1, VALUE _y1,
+		VALUE _x2, VALUE _y2,
+		VALUE _x3, VALUE _y3,
+		VALUE _x4, VALUE _y4,
+		VALUE color, VALUE _width)
+{
+	struct native_image* img;
+	int x1 = NUM2INT(_x1);
+	int y1 = NUM2INT(_y1);
+	int x2 = NUM2INT(_x2);
+	int y2 = NUM2INT(_y2);
+	int x3 = NUM2INT(_x3);
+	int y3 = NUM2INT(_y3);
+	int x4 = NUM2INT(_x4);
+	int y4 = NUM2INT(_y4);
+	int size = NUM2INT(_width);
+	unsigned int bgra = NUM2UINT(color);
+	if (size < 0)
+		rb_raise(rb_eArgError, "Invalid line width: %d", size);
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	dd_line(img, x1, y1, x2, y2, bgra, size);
+	dd_line(img, x2, y2, x3, y3, bgra, size);
+	dd_line(img, x3, y3, x4, y4, bgra, size);
+	dd_line(img, x4, y4, x1, y1, bgra, size);
+
+	return self;
+}
+
 static VALUE Image_fill_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 		VALUE _x2, VALUE _y2,
 		VALUE color)
@@ -708,11 +854,14 @@ static VALUE Image_fill_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 	int x2 = NUM2INT(_x2);
 	int y2 = NUM2INT(_y2);
 	unsigned int bgra = NUM2UINT(color);
+	int i, j;
 	
 	Data_Get_Struct(self, struct native_image, img);
 	RFI_CHECK_IMG(img);
 
-  int i, j;
+	try_sort(&x1, &x2);
+	try_sort(&y1, &y2);
+
 	for(i = x1; i <= x2; i++) {
 		for(j = y1; j <= y2; j++) {
 			FreeImage_SetPixelColor(img->handle, i, img->h - j, (RGBQUAD*)&bgra);
@@ -722,6 +871,56 @@ static VALUE Image_fill_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 	return self;
 }
 
+/*
+daw arbitrari quadrangle
+four point is　given clockwise ordered
+*/
+static VALUE Image_fill_quadrangle(VALUE self, VALUE _x1, VALUE _y1,
+		VALUE _x2, VALUE _y2,
+		VALUE _x3, VALUE _y3,
+		VALUE _x4, VALUE _y4,
+		VALUE color)
+{
+	struct native_image* img;
+	int x1 = NUM2INT(_x1);
+	int y1 = NUM2INT(_y1);
+	int x2 = NUM2INT(_x2);
+	int y2 = NUM2INT(_y2);
+	int x3 = NUM2INT(_x3);
+	int y3 = NUM2INT(_y3);
+	int x4 = NUM2INT(_x4);
+	int y4 = NUM2INT(_y4);
+	unsigned int bgra = NUM2UINT(color);
+
+	int d1, d2, d3, d4;
+	int x,y;
+	int minx, miny, maxx, maxy;
+
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	minx = min_of_arrary(x1,x2,x3,x4);
+	maxx = max_of_arrary(x1,x2,x3,x4);
+	miny = min_of_arrary(y1,y2,y3,y4);
+	maxy = max_of_arrary(y1,y2,y3,y4);
+
+	for(x = minx; x <= maxx; x++) {
+		for(y = miny; y <= maxy; y++) {
+			//if inner
+			d1 = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1);
+			d2 = (x3 - x2) * (y - y2) - (y3 - y2) * (x - x2);
+			d3 = (x4 - x3) * (y - y3) - (y4 - y3) * (x - x3);
+			d4 = (x1 - x4) * (y - y4) - (y1 - y4) * (x - x4);
+
+			if((d1 > 0 && d2 > 0 && d3 >0 && d4 >0) || (d1 < 0 && d2 < 0 && d3 < 0 && d4 <0))
+			{
+				FreeImage_SetPixelColor(img->handle, x, img->h - y, (RGBQUAD*)&bgra);
+			}
+		}
+	}
+
+	return self;
+}
 
 void Init_rfreeimage(void)
 {
@@ -757,8 +956,11 @@ void Init_rfreeimage(void)
 
 	/* draw */
 	rb_define_method(Class_Image, "draw_point", Image_draw_point, 4);
+	rb_define_method(Class_Image, "draw_line", Image_draw_line, 4 + 2);
 	rb_define_method(Class_Image, "draw_rectangle", Image_draw_rectangle, 4 + 2);
+	rb_define_method(Class_Image, "draw_quadrangle", Image_draw_quadrangle, 8 + 2);
 	rb_define_method(Class_Image, "fill_rectangle", Image_fill_rectangle, 4 + 1);
+	rb_define_method(Class_Image, "fill_quadrangle", Image_fill_quadrangle, 8 + 1);
 
 	rb_define_singleton_method(Class_Image, "ping", Image_ping, 1);
 	rb_define_singleton_method(Class_Image, "from_blob", Image_from_blob, -1);
