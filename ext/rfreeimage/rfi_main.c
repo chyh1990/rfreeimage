@@ -25,6 +25,24 @@ static void try_sort(int *x, int *y)
 	}
 }
 
+static int min_of_arrary(int x1, int x2, int x3, int x4)
+{
+	int m = x1;
+	if(x2 < m) m = x2;
+	if(x3 < m) m = x3;
+	if(x4 < m) m = x4;
+	return m;
+}
+
+static int max_of_arrary(int x1, int x2, int x3, int x4)
+{
+	int m = x1;
+	if(x2 > m) m = x2;
+	if(x3 > m) m = x3;
+	if(x4 > m) m = x4;
+	return m;
+}
+
 static VALUE rb_rfi_version(VALUE self)
 {
 	return rb_ary_new3(3, INT2NUM(FREEIMAGE_MAJOR_VERSION),
@@ -832,6 +850,56 @@ static VALUE Image_fill_rectangle(VALUE self, VALUE _x1, VALUE _y1,
 	return self;
 }
 
+/*
+daw arbitrari quadrangle
+four point is　given clockwise ordered
+*/
+static VALUE Image_fill_quadrangle(VALUE self, VALUE _x1, VALUE _y1,
+		VALUE _x2, VALUE _y2,
+		VALUE _x3, VALUE _y3,
+		VALUE _x4, VALUE _y4,
+		VALUE color)
+{
+	struct native_image* img;
+	int x1 = NUM2INT(_x1);
+	int y1 = NUM2INT(_y1);
+	int x2 = NUM2INT(_x2);
+	int y2 = NUM2INT(_y2);
+	int x3 = NUM2INT(_x3);
+	int y3 = NUM2INT(_y3);
+	int x4 = NUM2INT(_x4);
+	int y4 = NUM2INT(_y4);
+	unsigned int bgra = NUM2UINT(color);
+
+	int d1, d2, d3, d4;
+	int x,y;
+	int minx, miny, maxx, maxy;
+
+	Data_Get_Struct(self, struct native_image, img);
+	RFI_CHECK_IMG(img);
+
+	minx = min_of_arrary(x1,x2,x3,x4);
+	maxx = max_of_arrary(x1,x2,x3,x4);
+	miny = min_of_arrary(y1,y2,y3,y4);
+	maxy = max_of_arrary(y1,y2,y3,y4);
+
+	for(x = minx; x <= maxx; x++) {
+		for(y = miny; y <= maxy; y++) {
+			//if inner
+			d1 = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1);
+			d2 = (x3 - x2) * (y - y2) - (y3 - y2) * (x - x2);
+			d3 = (x4 - x3) * (y - y3) - (y4 - y3) * (x - x3);
+			d4 = (x1 - x4) * (y - y4) - (y1 - y4) * (x - x4);
+
+			if((d1 > 0 && d2 > 0 && d3 >0 && d4 >0) || (d1 < 0 && d2 < 0 && d3 < 0 && d4 <0))
+			{
+				FreeImage_SetPixelColor(img->handle, x, img->h - y, (RGBQUAD*)&bgra);
+			}
+		}
+	}
+
+	return self;
+}
 
 void Init_rfreeimage(void)
 {
@@ -870,7 +938,7 @@ void Init_rfreeimage(void)
 	rb_define_method(Class_Image, "draw_rectangle", Image_draw_rectangle, 4 + 2);
 	rb_define_method(Class_Image, "draw_quadrangle", Image_draw_quadrangle, 8 + 2);
 	rb_define_method(Class_Image, "fill_rectangle", Image_fill_rectangle, 4 + 1);
-	// rb_define_method(Class_Image, "fill_quadrangle", Image_draw_quadrangle, 4 + 2);
+	rb_define_method(Class_Image, "fill_quadrangle", Image_fill_quadrangle, 8 + 1);
 
 	rb_define_singleton_method(Class_Image, "ping", Image_ping, 1);
 	rb_define_singleton_method(Class_Image, "from_blob", Image_from_blob, -1);
